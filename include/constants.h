@@ -3,6 +3,7 @@
 
 #include <string>
 #include <map>
+#include <SDL2/SDL.h>
 
 namespace Constants {
     // Game logic constants
@@ -82,6 +83,10 @@ namespace Constants {
     
     // JSON formatting
     constexpr int JSON_INDENT = 4;
+        
+    inline SDL_Color toSDLColor(const Color& color) {
+        return SDL_Color{color.r, color.g, color.b, color.a};
+    }
 }
 
 #endif

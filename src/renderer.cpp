@@ -27,7 +27,8 @@ bool Renderer::init() {
         std::cerr << "IMG_Init Error: " << SDL_GetError() << std::endl;
         return false;
     }
-    window_ = SDL_CreateWindow("Alchemist MVP", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, Constants::WINDOW_WIDTH, Constants::WINDOW_HEIGHT, 0);
+    window_ = SDL_CreateWindow("Alchemist MVP", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                              Constants::WINDOW_WIDTH, Constants::WINDOW_HEIGHT, 0);
     if (!window_) {
         std::cerr << "Window Error: " << SDL_GetError() << std::endl;
         return false;
@@ -45,10 +46,27 @@ bool Renderer::init() {
     return true;
 }
 
-void Renderer::render(const Game& game) {
-    SDL_SetRenderDrawColor(renderer_, Constants::WHITE.r, Constants::WHITE.g, Constants::WHITE.b, Constants::WHITE.a);
+void Renderer::render(const Game& game, Screen screen) {
+    SDL_SetRenderDrawColor(renderer_, Constants::toSDLColor(Constants::WHITE).r, Constants::toSDLColor(Constants::WHITE).g, Constants::toSDLColor(Constants::WHITE).b, Constants::toSDLColor(Constants::WHITE).a);
     SDL_RenderClear(renderer_);
 
+    switch (screen) {
+        case Screen::FIELD:
+            render_field_screen(game);
+            break;
+        case Screen::INVENTORY:
+            render_inventory_screen(game);
+            break;
+        case Screen::REFINING:
+            render_refining_screen(game);
+            break;
+    }
+
+    render_navigation_buttons(screen);
+    SDL_RenderPresent(renderer_);
+}
+
+void Renderer::render_field_screen(const Game& game) {
     for (size_t i = 0; i < game.get_fields().size(); ++i) {
         int x = (i % Constants::GRID_SIZE) * Constants::FIELD_SPACING + Constants::FIELD_START_X;
         int y = (i / Constants::GRID_SIZE) * Constants::FIELD_SPACING + Constants::FIELD_START_Y;
@@ -63,11 +81,10 @@ void Renderer::render(const Game& game) {
         SDL_RenderFillRect(renderer_, &rect);
     }
 
-    SDL_Color white = {Constants::WHITE.r, Constants::WHITE.g, Constants::WHITE.b, Constants::WHITE.a};
     int y_offset = Constants::INVENTORY_START_Y;
     for (const auto& [item, count] : game.get_inventory()) {
         std::string text = item + ": " + std::to_string(count);
-        SDL_Surface* surface = TTF_RenderUTF8_Solid(font_, text.c_str(), white);
+        SDL_Surface* surface = TTF_RenderUTF8_Solid(font_, text.c_str(), Constants::toSDLColor(Constants::WHITE));
         SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer_, surface);
         SDL_Rect dst = {Constants::INVENTORY_X, y_offset, 200, Constants::TEXT_HEIGHT};
         SDL_RenderCopy(renderer_, texture, nullptr, &dst);
@@ -76,19 +93,37 @@ void Renderer::render(const Game& game) {
         y_offset += Constants::TEXT_HEIGHT;
     }
     std::string flame_text = "Flame: " + game.get_flame_type();
-    SDL_Surface* surface = TTF_RenderUTF8_Solid(font_, flame_text.c_str(), white);
+    SDL_Surface* surface = TTF_RenderUTF8_Solid(font_, flame_text.c_str(), Constants::toSDLColor(Constants::WHITE));
     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer_, surface);
     SDL_Rect dst = {Constants::INVENTORY_X, y_offset, 200, Constants::TEXT_HEIGHT};
     SDL_RenderCopy(renderer_, texture, nullptr, &dst);
     SDL_FreeSurface(surface);
     SDL_DestroyTexture(texture);
+}
+
+void Renderer::render_inventory_screen(const Game& game) {
+    int y_offset = Constants::INVENTORY_START_Y;
+    for (const auto& [item, count] : game.get_inventory()) {
+        std::string text = item + ": " + std::to_string(count);
+        SDL_Surface* surface = TTF_RenderUTF8_Solid(font_, text.c_str(), Constants::toSDLColor(Constants::WHITE));
+        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer_, surface);
+        SDL_Rect dst = {Constants::INVENTORY_X, y_offset, 200, Constants::TEXT_HEIGHT};
+        SDL_RenderCopy(renderer_, texture, nullptr, &dst);
+        SDL_FreeSurface(surface);
+        SDL_DestroyTexture(texture);
+        y_offset += Constants::TEXT_HEIGHT;
+    }
+}
+
+void Renderer::render_refining_screen(const Game& game) {
+    render_inventory_screen(game); // Include inventory
 
     SDL_SetRenderDrawColor(renderer_, Constants::BLUE.r, Constants::BLUE.g, Constants::BLUE.b, Constants::BLUE.a);
     SDL_Rect button = {Constants::BUTTON_X, Constants::REFINE_BUTTON_Y, Constants::BUTTON_WIDTH, Constants::BUTTON_HEIGHT};
     SDL_RenderFillRect(renderer_, &button);
-    surface = TTF_RenderUTF8_Solid(font_, "Refine", white);
-    texture = SDL_CreateTextureFromSurface(renderer_, surface);
-    dst = {Constants::BUTTON_X + 10, Constants::REFINE_BUTTON_Y + 10, Constants::BUTTON_WIDTH - 20, Constants::TEXT_HEIGHT};
+    SDL_Surface* surface = TTF_RenderUTF8_Solid(font_, "Refine", Constants::toSDLColor(Constants::WHITE));
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer_, surface);
+    SDL_Rect dst = {Constants::BUTTON_X + 10, Constants::REFINE_BUTTON_Y + 10, Constants::BUTTON_WIDTH - 20, Constants::TEXT_HEIGHT};
     SDL_RenderCopy(renderer_, texture, nullptr, &dst);
     SDL_FreeSurface(surface);
     SDL_DestroyTexture(texture);
@@ -96,12 +131,58 @@ void Renderer::render(const Game& game) {
     SDL_SetRenderDrawColor(renderer_, Constants::CYAN.r, Constants::CYAN.g, Constants::CYAN.b, Constants::CYAN.a);
     button = {Constants::BUTTON_X, Constants::FLAME_BUTTON_Y, Constants::BUTTON_WIDTH, Constants::BUTTON_HEIGHT};
     SDL_RenderFillRect(renderer_, &button);
-    surface = TTF_RenderUTF8_Solid(font_, "Toggle Flame", white);
+    surface = TTF_RenderUTF8_Solid(font_, "Toggle Flame", Constants::toSDLColor(Constants::WHITE));
     texture = SDL_CreateTextureFromSurface(renderer_, surface);
     dst = {Constants::BUTTON_X + 10, Constants::FLAME_BUTTON_Y + 10, Constants::BUTTON_WIDTH - 20, Constants::TEXT_HEIGHT};
     SDL_RenderCopy(renderer_, texture, nullptr, &dst);
     SDL_FreeSurface(surface);
     SDL_DestroyTexture(texture);
 
-    SDL_RenderPresent(renderer_);
+    std::string flame_text = "Flame: " + game.get_flame_type();
+    surface = TTF_RenderUTF8_Solid(font_, flame_text.c_str(), Constants::toSDLColor(Constants::WHITE));
+    texture = SDL_CreateTextureFromSurface(renderer_, surface);
+    dst = {Constants::BUTTON_X, Constants::FLAME_BUTTON_Y + Constants::BUTTON_HEIGHT + 10, 200, Constants::TEXT_HEIGHT};
+    SDL_RenderCopy(renderer_, texture, nullptr, &dst);
+    SDL_FreeSurface(surface);
+    SDL_DestroyTexture(texture);
+}
+
+void Renderer::render_navigation_buttons(Screen current_screen) {
+    SDL_SetRenderDrawColor(renderer_, Constants::BLUE.r, Constants::BLUE.g, Constants::BLUE.b, Constants::BLUE.a);
+    SDL_Rect field_button = {Constants::WINDOW_WIDTH - 150, 10, 40, 40};
+    SDL_Rect inv_button = {Constants::WINDOW_WIDTH - 100, 10, 40, 40};
+    SDL_Rect refine_button = {Constants::WINDOW_WIDTH - 50, 10, 40, 40};
+
+    SDL_SetRenderDrawColor(renderer_, current_screen == Screen::FIELD ? Constants::CYAN.r : Constants::BLUE.r,
+                           current_screen == Screen::FIELD ? Constants::CYAN.g : Constants::BLUE.g,
+                           current_screen == Screen::FIELD ? Constants::CYAN.b : Constants::BLUE.b, Constants::BLUE.a);
+    SDL_RenderFillRect(renderer_, &field_button);
+    SDL_Surface* surface = TTF_RenderUTF8_Solid(font_, "Field", Constants::toSDLColor(Constants::WHITE));
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer_, surface);
+    SDL_Rect dst = {Constants::WINDOW_WIDTH - 145, 15, 30, Constants::TEXT_HEIGHT};
+    SDL_RenderCopy(renderer_, texture, nullptr, &dst);
+    SDL_FreeSurface(surface);
+    SDL_DestroyTexture(texture);
+
+    SDL_SetRenderDrawColor(renderer_, current_screen == Screen::INVENTORY ? Constants::CYAN.r : Constants::BLUE.r,
+                           current_screen == Screen::INVENTORY ? Constants::CYAN.g : Constants::BLUE.g,
+                           current_screen == Screen::INVENTORY ? Constants::CYAN.b : Constants::BLUE.b, Constants::BLUE.a);
+    SDL_RenderFillRect(renderer_, &inv_button);
+    surface = TTF_RenderUTF8_Solid(font_, "Inv", Constants::toSDLColor(Constants::WHITE));
+    texture = SDL_CreateTextureFromSurface(renderer_, surface);
+    dst = {Constants::WINDOW_WIDTH - 95, 15, 30, Constants::TEXT_HEIGHT};
+    SDL_RenderCopy(renderer_, texture, nullptr, &dst);
+    SDL_FreeSurface(surface);
+    SDL_DestroyTexture(texture);
+
+    SDL_SetRenderDrawColor(renderer_, current_screen == Screen::REFINING ? Constants::CYAN.r : Constants::BLUE.r,
+                           current_screen == Screen::REFINING ? Constants::CYAN.g : Constants::BLUE.g,
+                           current_screen == Screen::REFINING ? Constants::CYAN.b : Constants::BLUE.b, Constants::BLUE.a);
+    SDL_RenderFillRect(renderer_, &refine_button);
+    surface = TTF_RenderUTF8_Solid(font_, "Refine", Constants::toSDLColor(Constants::WHITE));
+    texture = SDL_CreateTextureFromSurface(renderer_, surface);
+    dst = {Constants::WINDOW_WIDTH - 45, 15, 30, Constants::TEXT_HEIGHT};
+    SDL_RenderCopy(renderer_, texture, nullptr, &dst);
+    SDL_FreeSurface(surface);
+    SDL_DestroyTexture(texture);
 }
