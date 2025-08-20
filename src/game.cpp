@@ -2,8 +2,8 @@
 #include <random>
 #include <iostream>
 
-Game::Game() : fields_(16), inventory_{{"fire_grass", 0}, {"wood_grass", 0}, {"pill", 0}},
-               proficiency_(0), refining_(false), refine_time_(0.0), flame_type_("low"), pest_timer_(0.0) {}
+Game::Game() : fields_(Constants::FIELD_COUNT), inventory_(Constants::DEFAULT_INVENTORY),
+               proficiency_(0), refining_(false), refine_time_(0.0), flame_type_(Constants::LOW_FLAME), pest_timer_(0.0) {}
 
 void Game::update(double dt) {
     for (auto& field : fields_) {
@@ -18,14 +18,14 @@ void Game::update(double dt) {
         }
     }
     pest_timer_ += dt;
-    if (pest_timer_ >= 5.0) {
+    if (pest_timer_ >= Constants::PEST_CHECK_INTERVAL) {
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_real_distribution<> dis(0.0, 1.0);
-        if (dis(gen) < 0.01) {
+        if (dis(gen) < Constants::PEST_ATTACK_PROBABILITY) {
             for (auto& field : fields_) {
                 if (!field.is_empty() && !field.is_ready()) {
-                    field.plant("empty");
+                    field.plant(Constants::EMPTY);
                     std::cout << "Pest attack! Spirit grass lost!" << std::endl;
                 }
             }
@@ -53,9 +53,9 @@ bool Game::harvest(int idx, std::string& harvested_type) {
 }
 
 bool Game::start_refining() {
-    if (!refining_ && inventory_["fire_grass"] >= 2) {
+    if (!refining_ && inventory_[Constants::FIRE_GRASS] >= Constants::FIRE_GRASS_REQUIRED) {
         refining_ = true;
-        refine_time_ = 5.0;
+        refine_time_ = Constants::REFINE_TIME;
         std::cout << "Started refining with " << flame_type_ << " flame" << std::endl;
         return true;
     }
@@ -69,17 +69,17 @@ void Game::set_flame_type(const std::string& flame) {
 }
 
 bool Game::refine() {
-    if (inventory_["fire_grass"] < 2) return false;
-    inventory_["fire_grass"] -= 2;
+    if (inventory_[Constants::FIRE_GRASS] < Constants::FIRE_GRASS_REQUIRED) return false;
+    inventory_[Constants::FIRE_GRASS] -= Constants::FIRE_GRASS_REQUIRED;
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<> dis(0.0, 1.0);
-    double success_rate = 0.5 + proficiency_ * 0.01;
-    if (flame_type_ == "mid") success_rate += 0.1;
-    else if (flame_type_ == "high") success_rate += 0.2;
+    double success_rate = Constants::BASE_SUCCESS_RATE + proficiency_ * Constants::PROFICIENCY_BONUS;
+    if (flame_type_ == Constants::MID_FLAME) success_rate += Constants::MID_FLAME_BONUS;
+    else if (flame_type_ == Constants::HIGH_FLAME) success_rate += Constants::HIGH_FLAME_BONUS;
     if (dis(gen) < success_rate) {
-        inventory_["pill"]++;
-        proficiency_ += 5;
+        inventory_[Constants::PILL]++;
+        proficiency_ += Constants::PROFICIENCY_GAIN;
         return true;
     }
     return false;

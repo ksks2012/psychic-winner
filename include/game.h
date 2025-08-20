@@ -2,6 +2,7 @@
 #define GAME_H
 
 #include "field.h"
+#include "constants.h"
 #include <vector>
 #include <map>
 #include <string>
